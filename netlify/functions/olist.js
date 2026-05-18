@@ -12,39 +12,38 @@ exports.handler = async function(event) {
 
   try {
     const BASE = 'https://api.tiny.com.br/api2';
-    let response;
 
     if (event.httpMethod === 'GET') {
       const params = { ...event.queryStringParameters };
       const endpoint = params._endpoint;
       delete params._endpoint;
       const qs = new URLSearchParams(params).toString();
-      response = await fetch(`${BASE}/${endpoint}?${qs}`);
-    } else {
-      // Pega os valores crus do body
-      const rawParams = new URLSearchParams(event.body);
-      const endpoint = rawParams.get('_endpoint');
-
-      // Monta o body final direto para o Olist
-      const finalParams = new URLSearchParams();
-      for (const [k, v] of rawParams.entries()) {
-        if (k !== '_endpoint') finalParams.append(k, v);
-      }
-
-      // Log para debug
-      console.log('=== ENDPOINT:', endpoint);
-      console.log('=== PRODUTO XML:', finalParams.get('produto'));
-      console.log('=== FULL BODY:', finalParams.toString().slice(0, 500));
-
-      response = await fetch(`${BASE}/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: finalParams.toString(),
-      });
+      const response = await fetch(`${BASE}/${endpoint}?${qs}`);
+      const text = await response.text();
+      return { statusCode: 200, headers, body: text };
     }
 
+    // POST: body vem como string url-encoded do fetch do browser
+    // URLSearchParams ja decodifica os valores automaticamente
+    const params = new URLSearchParams(event.body);
+    const endpoint = params.get('_endpoint');
+    params.delete('_endpoint');
+
+    // Reconstrói manualmente sem double-encode
+    const token = params.get('token');
+    const formato = params.get('formato') || 'json';
+    const produto = params.get('produto'); // ja decodificado pelo URLSearchParams
+
+    // Envia para o Olist com encoding correto
+    const body = `token=${encodeURIComponent(token)}&formato=${encodeURIComponent(formato)}&produto=${encodeURIComponent(produto)}`;
+
+    const response = await fetch(`${BASE}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body,
+    });
+
     const text = await response.text();
-    console.log('=== OLIST RESPONSE:', text.slice(0, 300));
     return { statusCode: 200, headers, body: text };
   } catch (e) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) };

@@ -21,26 +21,30 @@ exports.handler = async function(event) {
       const qs = new URLSearchParams(params).toString();
       response = await fetch(`${BASE}/${endpoint}?${qs}`);
     } else {
-      // Decodifica o body antes de processar
-      const decoded = decodeURIComponent(event.body.replace(/\+/g, ' '));
-      const params = new URLSearchParams(decoded);
-      const endpoint = params.get('_endpoint');
-      params.delete('_endpoint');
+      // Pega os valores crus do body
+      const rawParams = new URLSearchParams(event.body);
+      const endpoint = rawParams.get('_endpoint');
 
-      // Monta novo body com os valores já decodificados
-      const finalBody = new URLSearchParams();
-      for (const [k, v] of params.entries()) {
-        finalBody.append(k, v);
+      // Monta o body final direto para o Olist
+      const finalParams = new URLSearchParams();
+      for (const [k, v] of rawParams.entries()) {
+        if (k !== '_endpoint') finalParams.append(k, v);
       }
+
+      // Log para debug
+      console.log('=== ENDPOINT:', endpoint);
+      console.log('=== PRODUTO XML:', finalParams.get('produto'));
+      console.log('=== FULL BODY:', finalParams.toString().slice(0, 500));
 
       response = await fetch(`${BASE}/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: finalBody.toString(),
+        body: finalParams.toString(),
       });
     }
 
     const text = await response.text();
+    console.log('=== OLIST RESPONSE:', text.slice(0, 300));
     return { statusCode: 200, headers, body: text };
   } catch (e) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) };

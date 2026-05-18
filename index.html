@@ -284,11 +284,10 @@ async function proxyGet(fullUrl) {
 
 async function proxyPost(fullUrl, params) {
   const endpoint = fullUrl.split('/').pop();
-  const body = new URLSearchParams({ ...params, _endpoint: endpoint }).toString();
   const r = await fetch(FN, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint, ...params }),
   });
   if (!r.ok) throw new Error('Erro HTTP ' + r.status);
   return parseResponse(r);
@@ -439,8 +438,7 @@ async function resizeImage(file, maxPx, quality) {
 
 async function sendToOlist(id, urls) {
   if (isDemo) { await new Promise(r=>setTimeout(r,600)); const p=DEMO.find(x=>x.id==id); if(p) urls.forEach(u=>p.fotos.push({link:u})); return; }
-  const xml=`<produto><id>${id}</id><imagens>${urls.map(u=>`<imagem><link>${u}</link></imagem>`).join('')}</imagens></produto>`;
-  const d=await proxyPost(API+'/produto.alterar.php',{token,formato:'json',produto:xml});
+  const d = await proxyPost(API+'/produto.alterar.php', { token, produto: { id, urls } });
   if (d.retorno?.status==='Erro') throw new Error(d.retorno.erros?.[0]?.erro||'Erro ao salvar');
 }
 

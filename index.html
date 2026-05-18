@@ -1,1 +1,517 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f1923">
+<title>Olist Fotos</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap');
+:root {
+  --bg:#0f1923; --bg2:#1a2535; --bg3:#243044;
+  --accent:#2ecc71; --accent2:#27ae60;
+  --text:#f0f4f8; --text2:#8fa3b8;
+  --border:rgba(255,255,255,0.08);
+  --red:#e74c3c; --blue:#3498db;
+  --r:14px; --font:'DM Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100svh}
 
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:.875rem 1.25rem;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
+.logo{width:34px;height:34px;border-radius:9px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.h-title{font-size:15px;font-weight:600}
+.h-sub{font-size:11px;color:var(--text2)}
+.badge{margin-left:auto;font-size:11px;font-family:'DM Mono',monospace;background:rgba(46,204,113,.15);color:var(--accent);border:1px solid rgba(46,204,113,.3);border-radius:20px;padding:3px 10px;display:none}
+.badge.on{display:block}
+.logout-btn{background:none;border:none;color:var(--text2);cursor:pointer;font-size:12px;font-family:var(--font);padding:4px 8px;border-radius:6px;display:none}
+.logout-btn:active{background:var(--bg3)}
+
+.screen{display:none}.screen.active{display:block}
+
+.overlay{position:fixed;inset:0;background:rgba(15,25,35,.88);display:none;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:999;backdrop-filter:blur(4px)}
+.overlay.on{display:flex}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.overlay p{font-size:14px;color:var(--text2)}
+
+.toast{position:fixed;bottom:5rem;left:50%;transform:translateX(-50%) translateY(12px);background:var(--bg2);border:1px solid var(--border);border-radius:24px;padding:9px 18px;font-size:13px;z-index:1000;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.s{border-color:rgba(46,204,113,.4);color:var(--accent)}
+.toast.e{border-color:rgba(231,76,60,.4);color:var(--red)}
+.toast.i{border-color:rgba(52,152,219,.4);color:var(--blue)}
+
+.btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s}
+.btn-p{background:var(--accent);color:#071a0d}
+.btn-p:active{transform:scale(.98);background:var(--accent2)}
+.btn-p:disabled{background:var(--bg3);color:var(--text2);cursor:not-allowed}
+.btn-s{background:var(--bg3);color:var(--text);border:1px solid var(--border);margin-top:.75rem}
+.btn-s:active{transform:scale(.98)}
+
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;margin-bottom:1rem}
+.card label{display:block;font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.card input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:14px;color:var(--text);font-family:'DM Mono',monospace;outline:none;transition:border-color .2s}
+.card input:focus{border-color:var(--accent)}
+.card .hint{font-size:12px;color:var(--text2);margin-top:8px;line-height:1.5}
+.card .hint a{color:var(--accent);text-decoration:none}
+
+/* LOGIN */
+.login-wrap{padding:2.5rem 1.5rem 2rem;min-height:100svh;display:flex;flex-direction:column;justify-content:center}
+.hero{text-align:center;margin-bottom:2.5rem}
+.hero .icon{width:72px;height:72px;border-radius:22px;background:linear-gradient(135deg,var(--accent),#1abc9c);display:inline-flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:1.25rem;box-shadow:0 8px 32px rgba(46,204,113,.25)}
+.hero h2{font-size:24px;font-weight:600;letter-spacing:-.5px;margin-bottom:6px}
+.hero p{font-size:14px;color:var(--text2);line-height:1.5}
+
+/* BUSCA */
+.search-wrap{padding:1.5rem 1.25rem}
+
+.total-pill{display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.5rem}
+.total-pill .lbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.total-pill .val{font-size:30px;font-weight:600;letter-spacing:-1px}
+.total-pill .emoji{font-size:30px;opacity:.4}
+
+.search-box{background:var(--bg2);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:.75rem;transition:border-color .2s}
+.search-box:focus-within{border-color:var(--accent)}
+.search-box input{background:none;border:none;outline:none;flex:1;font-size:16px;color:var(--text);font-family:var(--font)}
+.search-box input::placeholder{color:var(--text2)}
+
+.scan-btn{width:100%;padding:13px;border-radius:12px;border:1px dashed rgba(46,204,113,.35);background:rgba(46,204,113,.05);color:var(--accent);font-size:14px;font-weight:500;font-family:var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:1.5rem;transition:all .15s}
+.scan-btn:active{background:rgba(46,204,113,.12)}
+
+.hint-row{display:flex;gap:8px;margin-bottom:1.5rem}
+.hint-chip{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center;font-size:12px;color:var(--text2)}
+.hint-chip strong{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;color:var(--text)}
+
+/* RESULTADO */
+.result-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;margin-bottom:1rem;display:none}
+.result-card.on{display:block}
+.prod-header{display:flex;gap:12px;align-items:flex-start;margin-bottom:1.25rem}
+.prod-thumb{width:64px;height:64px;border-radius:10px;background:var(--bg3);flex-shrink:0;overflow:hidden;border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
+.prod-thumb img{width:100%;height:100%;object-fit:cover}
+.prod-name{font-size:16px;font-weight:600;letter-spacing:-.2px;margin-bottom:4px;line-height:1.3}
+.prod-sku{font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);margin-bottom:6px}
+.sb{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:10px}
+.sb-ok{background:rgba(46,204,113,.12);color:var(--accent)}
+.sb-no{background:rgba(231,76,60,.12);color:var(--red)}
+
+.slbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.ex-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem}
+.ex-photo{width:68px;height:68px;border-radius:8px;object-fit:cover;border:1px solid var(--border)}
+
+.cap-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem}
+.cap-btn{padding:12px 8px;border-radius:12px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;font-size:13px;font-weight:500;font-family:var(--font);display:flex;flex-direction:column;align-items:center;gap:6px;transition:all .15s}
+.cap-btn:active{background:var(--bg2)}
+
+.prev-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem}
+.prev-slot{aspect-ratio:1;border-radius:12px;overflow:hidden;position:relative}
+.prev-slot img{width:100%;height:100%;object-fit:cover}
+.prev-slot .rm{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:6px;background:rgba(231,76,60,.92);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700}
+
+.progress{height:4px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-bottom:1rem;display:none}
+.progress .fill{height:100%;background:var(--accent);border-radius:4px;transition:width .3s;width:0}
+.progress.on{display:block}
+
+.msg{padding:11px 14px;border-radius:10px;font-size:13px;margin-bottom:1rem;display:none;line-height:1.4}
+.msg.on{display:block}
+.msg.ok{background:rgba(46,204,113,.1);color:var(--accent);border:1px solid rgba(46,204,113,.2)}
+.msg.er{background:rgba(231,76,60,.1);color:var(--red);border:1px solid rgba(231,76,60,.2)}
+
+/* SCANNER */
+.scanner-ov{position:fixed;inset:0;background:#000;z-index:200;display:none;flex-direction:column}
+.scanner-ov.on{display:flex}
+.scanner-ov video{flex:1;width:100%;object-fit:cover}
+.scan-bar{padding:1rem 1.25rem;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:space-between}
+.scan-bar span{font-size:14px;color:#fff;opacity:.8}
+.scan-close{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:8px 16px;font-size:14px;font-family:var(--font);cursor:pointer}
+.scan-line{position:absolute;left:10%;right:10%;height:2px;background:var(--accent);top:50%;box-shadow:0 0 8px var(--accent);animation:scanline 2s ease-in-out infinite}
+@keyframes scanline{0%,100%{top:35%}50%{top:65%}}
+
+input[type="file"]{display:none}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">📦</div>
+  <div>
+    <div class="h-title">Olist Fotos</div>
+    <div class="h-sub" id="h-sub">Cadastro de imagens</div>
+  </div>
+  <div class="badge" id="badge">conectado</div>
+  <button class="logout-btn" id="btn-logout">Sair</button>
+</div>
+
+<div class="overlay" id="loading"><div class="spinner"></div><p id="load-txt">Aguarde...</p></div>
+<div class="toast" id="toast"></div>
+
+<!-- LOGIN -->
+<div class="screen active" id="screen-login">
+<div class="login-wrap">
+  <div class="hero">
+    <div class="icon">📷</div>
+    <h2>Fotos direto do celular</h2>
+    <p>Conecte com seu token da API Olist e cadastre fotos escaneando o código do produto</p>
+  </div>
+  <div class="card">
+    <label>Token da API (v2)</label>
+    <input type="password" id="token-input" placeholder="cole seu token aqui" autocomplete="off" spellcheck="false">
+    <div class="hint">
+      Gere em <a href="https://erp.olist.com" target="_blank">erp.olist.com</a> → Configurações → E-commerce → Token API
+    </div>
+  </div>
+  <button class="btn btn-p" id="btn-login">Conectar</button>
+  <button class="btn btn-s" id="btn-demo">Entrar em modo demonstração</button>
+</div>
+</div>
+
+<!-- BUSCA -->
+<div class="screen" id="screen-search">
+<div class="search-wrap">
+
+  <div class="total-pill">
+    <div>
+      <div class="lbl">Total de produtos</div>
+      <div class="val" id="total-val">—</div>
+    </div>
+    <div class="emoji">🗂️</div>
+  </div>
+
+  <div class="search-box">
+    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" opacity=".4">
+      <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+    </svg>
+    <input type="text" id="search-input" placeholder="Código ou cód. de barras..." inputmode="text" enterkeyhint="search">
+  </div>
+
+  <button class="scan-btn" id="btn-scan">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path d="M3 9V5a2 2 0 012-2h4M3 15v4a2 2 0 002 2h4M21 9V5a2 2 0 00-2-2h-4M21 15v4a2 2 0 01-2 2h-4M8 12h8"/>
+    </svg>
+    Escanear código de barras
+  </button>
+
+  <div class="hint-row">
+    <div class="hint-chip"><strong>Código SKU</strong>Ex: CAM-001</div>
+    <div class="hint-chip"><strong>Cód. Barras</strong>Ex: 7891234567890</div>
+  </div>
+
+  <!-- RESULTADO -->
+  <div class="result-card" id="result-card">
+    <div class="prod-header">
+      <div class="prod-thumb" id="prod-thumb">
+        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" opacity=".3">
+          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/>
+        </svg>
+      </div>
+      <div>
+        <div class="prod-name" id="prod-name">—</div>
+        <div class="prod-sku" id="prod-sku">—</div>
+        <span class="sb" id="prod-status">—</span>
+      </div>
+    </div>
+
+    <div id="ex-wrap" style="display:none">
+      <div class="slbl">Fotos atuais</div>
+      <div class="ex-grid" id="ex-grid"></div>
+    </div>
+
+    <div class="slbl">Adicionar novas fotos</div>
+
+    <div class="cap-row">
+      <button class="cap-btn" id="btn-camera">
+        <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/>
+        </svg>
+        Câmera
+      </button>
+      <button class="cap-btn" id="btn-gallery">
+        <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+          <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+        </svg>
+        Galeria
+      </button>
+    </div>
+
+    <input type="file" id="file-camera" accept="image/*" capture="environment" multiple>
+    <input type="file" id="file-gallery" accept="image/*" multiple>
+
+    <div class="prev-grid" id="prev-grid"></div>
+    <div class="progress" id="progress"><div class="fill" id="pfill"></div></div>
+    <div class="msg" id="msg"></div>
+    <button class="btn btn-p" id="btn-upload" disabled>Enviar fotos para o Olist</button>
+  </div>
+
+</div>
+</div>
+
+<!-- SCANNER -->
+<div class="scanner-ov" id="scanner">
+  <div class="scan-bar">
+    <span>Aponte para o código de barras</span>
+    <button class="scan-close" id="btn-scan-close">Fechar</button>
+  </div>
+  <video id="scan-video" autoplay playsinline muted></video>
+  <div class="scan-line"></div>
+</div>
+
+<script>
+const API = 'https://api.tiny.com.br/api2';
+const IMGBB_KEY = '5c3e7f8a9b2d1e4f6a8c0b3d5e7f9a1b';
+
+const FN = '/.netlify/functions/olist';
+
+async function parseResponse(r) {
+  const txt = await r.text();
+  if (!txt || !txt.trim()) throw new Error('Resposta vazia da API');
+  try { return JSON.parse(txt); } catch {}
+  // tenta extrair JSON de dentro de texto
+  const match = txt.match(/\{[\s\S]*\}/);
+  if (match) try { return JSON.parse(match[0]); } catch {}
+  throw new Error('ERRO JSON mal formado ou inválido — resposta: ' + txt.slice(0, 80));
+}
+
+async function proxyGet(fullUrl) {
+  const u = new URL(fullUrl);
+  const params = Object.fromEntries(u.searchParams.entries());
+  params._endpoint = u.pathname.split('/').pop();
+  const qs = new URLSearchParams(params).toString();
+  const r = await fetch(`${FN}?${qs}`);
+  if (!r.ok) throw new Error('Erro HTTP ' + r.status);
+  return parseResponse(r);
+}
+
+async function proxyPost(fullUrl, params) {
+  const endpoint = fullUrl.split('/').pop();
+  const r = await fetch(FN, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint, ...params }),
+  });
+  if (!r.ok) throw new Error('Erro HTTP ' + r.status);
+  return parseResponse(r);
+}
+
+let token='', isDemo=false, currentProduct=null, pendingPhotos=[];
+
+const DEMO = [
+  {id:1, nome:'Camiseta Básica Branca P', codigo:'CAM-001', gtin:'7891234560001', fotos:[{link:'https://picsum.photos/seed/p1/200'}]},
+  {id:2, nome:'Calça Jeans Slim 38', codigo:'CAL-002', gtin:'7891234560002', fotos:[]},
+  {id:3, nome:'Tênis Esportivo 42', codigo:'TEN-003', gtin:'7891234560003', fotos:[]},
+  {id:4, nome:'Mochila Escolar Preta', codigo:'MOC-004', gtin:'7891234560004', fotos:[{link:'https://picsum.photos/seed/p4/200'}]},
+];
+
+const $ = id => document.getElementById(id);
+function load(txt='Aguarde...') { $('load-txt').textContent=txt; $('loading').classList.add('on'); }
+function unload() { $('loading').classList.remove('on'); }
+function toast(msg, type='i') { const t=$('toast'); t.textContent=msg; t.className='toast on '+type; setTimeout(()=>t.classList.remove('on'),2800); }
+function screen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $('screen-'+id).classList.add('active'); }
+
+async function connect() {
+  const t = $('token-input').value.trim();
+  if (!t) { toast('Cole o token primeiro','e'); return; }
+  token=t; isDemo=false;
+  load('Verificando token...');
+  try {
+    const data = await proxyGet(`${API}/produtos.pesquisa.php?token=${encodeURIComponent(token)}&formato=json&pagina=1&numero_por_pagina=1`);
+    if (!data.retorno || data.retorno.status==='Erro') throw new Error(data.retorno?.erros?.[0]?.erro||'Token inválido');
+    const total = data.retorno.numero_registros || '?';
+    localStorage.setItem('olist_token', token);
+    unload();
+    goSearch(total);
+  } catch(e) { unload(); toast('Erro: '+e.message,'e'); }
+}
+
+function goSearch(total) {
+  $('total-val').textContent = total;
+  $('badge').classList.add('on');
+  $('btn-logout').style.display = 'block';
+  $('h-sub').textContent = 'token ativo';
+  clearResult();
+  screen('search');
+}
+
+async function searchProduct(q) {
+  q = q.trim();
+  if (!q) return;
+  load('Buscando produto...');
+  clearResult();
+  try {
+    if (isDemo) {
+      await new Promise(r=>setTimeout(r,500));
+      const p = DEMO.find(x=>x.codigo===q||x.gtin===q);
+      unload();
+      p ? showProduct({...p, fotos:[...p.fotos]}) : toast('Produto não encontrado','e');
+      return;
+    }
+    const data = await proxyGet(`${API}/produtos.pesquisa.php?token=${encodeURIComponent(token)}&formato=json&pesquisa=${encodeURIComponent(q)}`);
+    if (!data.retorno || data.retorno.status==='Erro' || !data.retorno.produtos?.length) {
+      unload(); toast('Produto não encontrado','e'); return;
+    }
+    const raw = data.retorno.produtos[0].produto;
+    load('Carregando detalhes...');
+    const det = await proxyGet(`${API}/produto.obter.php?token=${encodeURIComponent(token)}&formato=json&id=${raw.id}`);
+    unload();
+    const prod = det.retorno?.produto || raw;
+    let fotos = [];
+    if (prod.imagens) {
+      const arr = Array.isArray(prod.imagens) ? prod.imagens : [prod.imagens];
+      fotos = arr.map(i => typeof i==='string' ? {link:i} : (i.imagem||i));
+    }
+    showProduct({id:prod.id, nome:prod.nome, codigo:prod.codigo||q, fotos});
+  } catch(e) { unload(); toast('Erro: '+e.message,'e'); }
+}
+
+function showProduct(p) {
+  currentProduct=p; pendingPhotos=[];
+  const has = p.fotos && p.fotos.length>0;
+  $('prod-name').textContent = p.nome;
+  $('prod-sku').textContent = 'Código: '+p.codigo;
+  const st=$('prod-status');
+  st.textContent = has ? `✓ ${p.fotos.length} foto${p.fotos.length>1?'s':''}` : '✗ sem foto';
+  st.className = 'sb '+(has?'sb-ok':'sb-no');
+  const th=$('prod-thumb');
+  if (has) { const u=p.fotos[0].link||p.fotos[0]; th.innerHTML=`<img src="${u}" onerror="this.style.display='none'">`; }
+  else th.innerHTML=`<svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" opacity=".3"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+  const exw=$('ex-wrap'), exg=$('ex-grid');
+  if (has) { exw.style.display='block'; exg.innerHTML=p.fotos.map(f=>{const u=f.link||f;return`<img class="ex-photo" src="${u}" onerror="this.style.display='none'">`;}).join(''); }
+  else exw.style.display='none';
+  renderPending();
+  $('msg').classList.remove('on');
+  $('progress').classList.remove('on');
+  $('btn-upload').disabled=true;
+  $('result-card').classList.add('on');
+  setTimeout(()=>$('result-card').scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+
+function clearResult() { currentProduct=null; pendingPhotos=[]; $('result-card').classList.remove('on'); $('prev-grid').innerHTML=''; }
+
+function handleFiles(files) {
+  Array.from(files).slice(0,6-pendingPhotos.length).forEach(f=>{
+    const r=new FileReader();
+    r.onload=e=>{pendingPhotos.push({dataUrl:e.target.result,file:f});renderPending();};
+    r.readAsDataURL(f);
+  });
+}
+
+function renderPending() {
+  $('prev-grid').innerHTML=pendingPhotos.map((p,i)=>`<div class="prev-slot"><img src="${p.dataUrl}"><button class="rm" onclick="removePhoto(${i})">✕</button></div>`).join('');
+  $('btn-upload').disabled=!pendingPhotos.length;
+}
+
+function removePhoto(i) { pendingPhotos.splice(i,1); renderPending(); }
+
+async function uploadImgur(file) {
+  const resized = await resizeImage(file, 1200, 0.85);
+  const fd = new FormData();
+  fd.append('file', resized);
+  fd.append('upload_preset', 'olist_fotos');
+  const r = await fetch('https://api.cloudinary.com/v1_1/dryhnlmmg/image/upload', {
+    method: 'POST',
+    body: fd
+  });
+  const d = await r.json();
+  if (d.secure_url) return d.secure_url;
+  throw new Error('Falha no upload: ' + (d.error?.message || 'erro desconhecido'));
+}
+
+async function resizeImage(file, maxPx, quality) {
+  return new Promise(res => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.width, h = img.height;
+      if (w > maxPx || h > maxPx) {
+        if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+        else { w = Math.round(w * maxPx / h); h = maxPx; }
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      c.toBlob(blob => res(blob), 'image/jpeg', quality);
+    };
+    img.src = url;
+  });
+}
+
+async function sendToOlist(id, urls) {
+  if (isDemo) { await new Promise(r=>setTimeout(r,600)); const p=DEMO.find(x=>x.id==id); if(p) urls.forEach(u=>p.fotos.push({link:u})); return; }
+  const d = await proxyPost(API+'/produto.alterar.php', { token, produto: { id, urls } });
+  if (d.retorno?.status==='Erro') throw new Error(d.retorno.erros?.[0]?.erro||'Erro ao salvar');
+}
+
+$('btn-upload').addEventListener('click', async ()=>{
+  if (!pendingPhotos.length||!currentProduct) return;
+  $('btn-upload').disabled=true;
+  $('progress').classList.add('on');
+  $('msg').classList.remove('on');
+  try {
+    const urls=[];
+    for (let i=0;i<pendingPhotos.length;i++) {
+      load(`Enviando foto ${i+1} de ${pendingPhotos.length}...`);
+      $('pfill').style.width=Math.round((i/pendingPhotos.length)*70)+'%';
+      urls.push(await uploadImgur(pendingPhotos[i].file));
+    }
+    $('pfill').style.width='85%';
+    load('Salvando no Olist...');
+    await sendToOlist(currentProduct.id, urls);
+    $('pfill').style.width='100%';
+    unload();
+    if (!currentProduct.fotos) currentProduct.fotos=[];
+    urls.forEach(u=>currentProduct.fotos.push({link:u}));
+    showProduct(currentProduct);
+    const m=$('msg'); m.textContent=`✓ ${urls.length} foto${urls.length>1?'s':''} adicionada${urls.length>1?'s':''} com sucesso!`; m.className='msg on ok';
+    toast('Fotos enviadas!','s');
+    setTimeout(()=>$('progress').classList.remove('on'),1200);
+  } catch(e) {
+    unload(); $('progress').classList.remove('on');
+    const m=$('msg'); m.textContent='✗ '+e.message; m.className='msg on er';
+    $('btn-upload').disabled=false;
+    toast('Erro: '+e.message,'e');
+  }
+});
+
+// SCANNER
+let scanStream=null;
+async function startScan() {
+  if (!('BarcodeDetector' in window)) { toast('Scanner indisponível neste browser. Digite o código.','e'); return; }
+  try {
+    scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    $('scan-video').srcObject=scanStream;
+    $('scanner').classList.add('on');
+    const det=new BarcodeDetector({formats:['ean_13','ean_8','code_128','code_39','upc_a','upc_e','qr_code']});
+    const vid=$('scan-video');
+    const loop=async()=>{
+      if (!$('scanner').classList.contains('on')) return;
+      try { const c=await det.detect(vid); if(c.length){stopScan();$('search-input').value=c[0].rawValue;searchProduct(c[0].rawValue);return;} } catch{}
+      requestAnimationFrame(loop);
+    };
+    vid.addEventListener('playing',()=>requestAnimationFrame(loop),{once:true});
+  } catch { toast('Câmera negada ou indisponível','e'); }
+}
+function stopScan() { $('scanner').classList.remove('on'); if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;} }
+
+// EVENTOS
+$('btn-login').addEventListener('click', connect);
+$('token-input').addEventListener('keydown', e=>{ if(e.key==='Enter') connect(); });
+$('btn-demo').addEventListener('click', ()=>{ isDemo=true; token='DEMO'; localStorage.setItem('olist_token','DEMO'); goSearch(DEMO.length); toast('Modo demonstração','i'); });
+$('btn-logout').addEventListener('click', ()=>{ token=''; isDemo=false; localStorage.removeItem('olist_token'); $('badge').classList.remove('on'); $('btn-logout').style.display='none'; $('h-sub').textContent='Cadastro de imagens'; screen('login'); });
+$('search-input').addEventListener('keydown', e=>{ if(e.key==='Enter') searchProduct(e.target.value); });
+$('btn-scan').addEventListener('click', startScan);
+$('btn-scan-close').addEventListener('click', stopScan);
+$('btn-camera').addEventListener('click', ()=>$('file-camera').click());
+$('btn-gallery').addEventListener('click', ()=>$('file-gallery').click());
+$('file-camera').addEventListener('change', e=>handleFiles(e.target.files));
+$('file-gallery').addEventListener('change', e=>handleFiles(e.target.files));
+
+// AUTO-LOGIN
+const saved=localStorage.getItem('olist_token');
+if (saved) {
+  if (saved==='DEMO') { $('btn-demo').click(); }
+  else { $('token-input').value=saved; token=saved; connect(); }
+}
+</script>
+</body>
+</html>

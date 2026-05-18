@@ -395,33 +395,17 @@ function renderPending() {
 function removePhoto(i) { pendingPhotos.splice(i,1); renderPending(); }
 
 async function uploadImgur(file) {
-  // Redimensiona a imagem antes de subir (max 1200px, qualidade 85%)
   const resized = await resizeImage(file, 1200, 0.85);
-
-  // Tenta Imgur com múltiplos Client IDs
-  const imgurIds = [
-    'ea37db1f6b1f27e',
-    '546c25a59c58ad7',
-    'f0ea04148a54268',
-  ];
-  for (const cid of imgurIds) {
-    try {
-      const fd = new FormData();
-      fd.append('image', resized);
-      const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 15000);
-      const r = await fetch('https://api.imgur.com/3/image', {
-        method: 'POST',
-        headers: { Authorization: 'Client-ID ' + cid },
-        body: fd,
-        signal: ctrl.signal
-      });
-      clearTimeout(tid);
-      const d = await r.json();
-      if (d.success && d.data?.link) return d.data.link;
-    } catch {}
-  }
-  throw new Error('Falha no upload da imagem. Verifique sua conexão e tente novamente.');
+  const fd = new FormData();
+  fd.append('file', resized);
+  fd.append('upload_preset', 'olist_fotos');
+  const r = await fetch('https://api.cloudinary.com/v1_1/dryhnlmmg/image/upload', {
+    method: 'POST',
+    body: fd
+  });
+  const d = await r.json();
+  if (d.secure_url) return d.secure_url;
+  throw new Error('Falha no upload: ' + (d.error?.message || 'erro desconhecido'));
 }
 
 async function resizeImage(file, maxPx, quality) {

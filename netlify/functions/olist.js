@@ -15,17 +15,28 @@ exports.handler = async function(event) {
     let response;
 
     if (event.httpMethod === 'GET') {
-      const params = event.queryStringParameters || {};
+      const params = { ...event.queryStringParameters };
+      const endpoint = params._endpoint;
+      delete params._endpoint;
       const qs = new URLSearchParams(params).toString();
-      response = await fetch(`${BASE}/${params._endpoint}?${qs}`);
+      response = await fetch(`${BASE}/${endpoint}?${qs}`);
     } else {
-      const params = new URLSearchParams(event.body);
+      // Decodifica o body antes de processar
+      const decoded = decodeURIComponent(event.body.replace(/\+/g, ' '));
+      const params = new URLSearchParams(decoded);
       const endpoint = params.get('_endpoint');
       params.delete('_endpoint');
+
+      // Monta novo body com os valores já decodificados
+      const finalBody = new URLSearchParams();
+      for (const [k, v] of params.entries()) {
+        finalBody.append(k, v);
+      }
+
       response = await fetch(`${BASE}/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString(),
+        body: finalBody.toString(),
       });
     }
 

@@ -260,8 +260,17 @@ input[type="file"]{display:none}
 const API = 'https://api.tiny.com.br/api2';
 const IMGBB_KEY = '5c3e7f8a9b2d1e4f6a8c0b3d5e7f9a1b';
 
-// Usa a Netlify Function como proxy — sem bloqueio de CORS
 const FN = '/.netlify/functions/olist';
+
+async function parseResponse(r) {
+  const txt = await r.text();
+  if (!txt || !txt.trim()) throw new Error('Resposta vazia da API');
+  try { return JSON.parse(txt); } catch {}
+  // tenta extrair JSON de dentro de texto
+  const match = txt.match(/\{[\s\S]*\}/);
+  if (match) try { return JSON.parse(match[0]); } catch {}
+  throw new Error('ERRO JSON mal formado ou inválido — resposta: ' + txt.slice(0, 80));
+}
 
 async function proxyGet(fullUrl) {
   const u = new URL(fullUrl);
@@ -269,8 +278,8 @@ async function proxyGet(fullUrl) {
   params._endpoint = u.pathname.split('/').pop();
   const qs = new URLSearchParams(params).toString();
   const r = await fetch(`${FN}?${qs}`);
-  if (!r.ok) throw new Error('Erro ' + r.status);
-  return r.json();
+  if (!r.ok) throw new Error('Erro HTTP ' + r.status);
+  return parseResponse(r);
 }
 
 async function proxyPost(fullUrl, params) {
@@ -281,8 +290,8 @@ async function proxyPost(fullUrl, params) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   });
-  if (!r.ok) throw new Error('Erro ' + r.status);
-  return r.json();
+  if (!r.ok) throw new Error('Erro HTTP ' + r.status);
+  return parseResponse(r);
 }
 
 let token='', isDemo=false, currentProduct=null, pendingPhotos=[];

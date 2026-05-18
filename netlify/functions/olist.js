@@ -23,24 +23,25 @@ exports.handler = async function(event) {
       return { statusCode: 200, headers, body: text };
     }
 
-    // POST: body vem como string url-encoded do fetch do browser
-    // URLSearchParams ja decodifica os valores automaticamente
-    const params = new URLSearchParams(event.body);
-    const endpoint = params.get('_endpoint');
-    params.delete('_endpoint');
+    // POST: recebe JSON do frontend
+    const { endpoint, token, produto } = JSON.parse(event.body);
 
-    // Reconstrói manualmente sem double-encode
-    const token = params.get('token');
-    const formato = params.get('formato') || 'json';
-    const produto = params.get('produto'); // ja decodificado pelo URLSearchParams
+    // Monta o XML do produto
+    const xml = `<produto><id>${produto.id}</id><imagens>${
+      produto.urls.map(u => `<imagem><link>${u}</link></imagem>`).join('')
+    }</imagens></produto>`;
 
-    // Envia para o Olist com encoding correto
-    const body = `token=${encodeURIComponent(token)}&formato=${encodeURIComponent(formato)}&produto=${encodeURIComponent(produto)}`;
+    // Envia para o Olist
+    const body = new URLSearchParams({
+      token: token,
+      formato: 'json',
+      produto: xml,
+    });
 
     const response = await fetch(`${BASE}/${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body,
+      body: body.toString(),
     });
 
     const text = await response.text();

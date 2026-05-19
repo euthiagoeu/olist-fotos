@@ -25,10 +25,11 @@ exports.handler = async function(event) {
 
     const { endpoint, token, produto } = JSON.parse(event.body);
 
-    // Tag raiz deve ser <produtos> (plural) conforme documentação oficial
-    const xml = `<produtos><produto><id>${produto.id}</id><imagens>${
-      produto.urls.map(u => `<imagem><link>${u}</link></imagem>`).join('')
-    }</imagens></produto></produtos>`;
+    // Estrutura correta conforme documentação oficial do Tiny/Olist:
+    // imagens ficam dentro de <anexos><anexo>URL</anexo></anexos>
+    const xml = `<?xml version="1.0" encoding="UTF-8"?><produtos><produto><id>${produto.id}</id><anexos>${
+      produto.urls.map(u => `<anexo>${u}</anexo>`).join('')
+    }</anexos></produto></produtos>`;
 
     const body = new URLSearchParams({
       token: token,

@@ -359,7 +359,9 @@ async function searchProduct(q) {
       const arr = Array.isArray(prod.imagens) ? prod.imagens : [prod.imagens];
       fotos = arr.map(i => typeof i==='string' ? {link:i} : (i.imagem||i));
     }
-    showProduct({id:prod.id, nome:prod.nome, codigo:prod.codigo||q, fotos});
+    const prodId = prod.id || prod.codigo_mapeamento || raw.id;
+    if (!prodId) { unload(); toast('ID do produto não encontrado na API','e'); return; }
+    showProduct({id:prodId, nome:prod.nome, codigo:prod.codigo||q, fotos});
   } catch(e) { unload(); toast('Erro: '+e.message,'e'); }
 }
 
@@ -438,7 +440,11 @@ async function resizeImage(file, maxPx, quality) {
 
 async function sendToOlist(id, urls) {
   if (isDemo) { await new Promise(r=>setTimeout(r,600)); const p=DEMO.find(x=>x.id==id); if(p) urls.forEach(u=>p.fotos.push({link:u})); return; }
-  const d = await proxyPost(API+'/produto.alterar.php', { token, produto: { id, urls } });
+  // Debug: mostrar o ID que está sendo enviado
+  console.log('Enviando para Olist - ID:', id, 'tipo:', typeof id, 'URLs:', urls);
+  if (!id) throw new Error('ID do produto inválido: ' + JSON.stringify(id));
+  const d = await proxyPost(API+'/produto.alterar.php', { token, produto: { id: String(id), urls } });
+  console.log('Resposta Olist:', JSON.stringify(d));
   if (d.retorno?.status==='Erro') throw new Error(d.retorno.erros?.[0]?.erro||'Erro ao salvar');
 }
 

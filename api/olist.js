@@ -21,47 +21,54 @@ export default async function handler(req, res) {
     const { endpoint, token, produto } = req.body;
     const id = produto.id;
     const urls = produto.urls;
-    const url = urls[0];
 
     // Busca produto completo
     const getR = await fetch(`${BASE}/produto.obter.php?token=${encodeURIComponent(token)}&formato=JSON&id=${id}`);
     const prod = (await getR.json()).retorno.produto;
 
-    const base = {
-      sequencia: 1,
-      id: prod.id,
-      nome: prod.nome,
-      codigo: prod.codigo || '',
-      unidade: prod.unidade || 'UN',
-      preco: prod.preco || '0',
-      tipo: prod.tipo || 'P',
-      situacao: prod.situacao || 'A',
-      origem: prod.origem || '0',
-    };
+    const existentes = Array.isArray(prod.anexos) ? prod.anexos : [];
 
-    // Testar campo anexos com variações
+    // Testa 3 formatos de URL diferentes para o mesmo arquivo
+    const urlOriginal = urls[0];
+    // Força extensão .jpg explícita no Cloudinary
+    const urlComExtensao = urlOriginal.replace('/upload/', '/upload/f_jpg/');
+    // URL de teste com imagem pública conhecida
+    const urlTeste = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Image_created_with_a_mobile_phone.png/220px-Image_created_with_a_mobile_phone.png';
+
     const variantes = [
-      { ...base, anexos: [{ anexo: { link: url } }] },
-      { ...base, anexos: [{ link: url }] },
-      { ...base, anexos: { anexo: { link: url } } },
-      { ...base, anexos: [{ url: url }] },
-      { ...base, anexos: [url] },
+      [...existentes, { anexo: urlOriginal }],
+      [...existentes, { anexo: urlComExtensao }],
+      [...existentes, { anexo: urlTeste }],
     ];
 
     const results = [];
     for (let i = 0; i < variantes.length; i++) {
+      const produtoAtualizado = {
+        sequencia: 1,
+        id: prod.id,
+        nome: prod.nome,
+        codigo: prod.codigo || '',
+        unidade: prod.unidade || 'Un',
+        preco: prod.preco || '0',
+        tipo: prod.tipo || 'P',
+        situacao: prod.situacao || 'A',
+        origem: prod.origem || '0',
+        anexos: variantes[i],
+      };
+
       const body = new URLSearchParams({
         token,
         formato: 'JSON',
-        produto: JSON.stringify({ produtos: [{ produto: variantes[i] }] }),
+        produto: JSON.stringify({ produtos: [{ produto: produtoAtualizado }] }),
       });
+
       const r = await fetch(`${BASE}/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body.toString(),
       });
       const text = await r.text();
-      results.push({ v: i + 1, r: text.slice(0, 200) });
+      results.push({ v: i + 1, url: variantes[i].slice(-1)[0].anexo.slice(0, 60), r: text.slice(0, 200) });
       try {
         const p = JSON.parse(text);
         if (p.retorno?.status === 'OK') {

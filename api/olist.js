@@ -22,60 +22,48 @@ export default async function handler(req, res) {
     const id = produto.id;
     const urls = produto.urls;
 
-    // 1. Busca produto completo
+    // Busca produto completo
     const getR = await fetch(`${BASE}/produto.obter.php?token=${encodeURIComponent(token)}&formato=JSON&id=${id}`);
     const prod = (await getR.json()).retorno.produto;
 
-    // 2. Monta imagens — retorna o campo RAW para debug
-    const imagensRaw = prod.imagens || prod.anexos || prod.fotos || null;
+    // Imagens externas existentes
+    const existentes = prod.imagens_externas
+      ? (Array.isArray(prod.imagens_externas) ? prod.imagens_externas : [prod.imagens_externas])
+      : [];
 
-    // 3. Testa 3 formatos de imagem diferentes
-    const formatosImagem = [
-      // Formato A: array de strings simples
-      { imagens: urls },
-      // Formato B: objeto com url
-      { imagens: urls.map(u => ({ url: u })) },
-      // Formato C: objeto com link dentro de imagem
-      { imagens: { imagem: { link: urls[0] } } },
-    ];
+    // Adiciona novas URLs como imagens_externas
+    const novas = urls.map(u => ({ imagem_externa: { link: u } }));
+    const todasExternas = [...existentes, ...novas];
 
-    const results = [];
-    for (let i = 0; i < formatosImagem.length; i++) {
-      const produtoAtualizado = {
-        sequencia: 1,
-        id: prod.id,
-        nome: prod.nome,
-        codigo: prod.codigo || '',
-        unidade: prod.unidade || 'UN',
-        preco: prod.preco || '0',
-        tipo: prod.tipo || 'P',
-        situacao: prod.situacao || 'A',
-        origem: prod.origem || '0',
-        ...formatosImagem[i],
-      };
+    const produtoAtualizado = {
+      sequencia: 1,
+      id: prod.id,
+      nome: prod.nome,
+      codigo: prod.codigo || '',
+      unidade: prod.unidade || 'UN',
+      preco: prod.preco || '0',
+      tipo: prod.tipo || 'P',
+      situacao: prod.situacao || 'A',
+      origem: prod.origem || '0',
+      imagens_externas: todasExternas,
+    };
 
-      const body = new URLSearchParams({
-        token,
-        formato: 'JSON',
-        produto: JSON.stringify({ produtos: [{ produto: produtoAtualizado }] }),
-      });
-
-      const r = await fetch(`${BASE}/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(),
-      });
-      const text = await r.text();
-      results.push({ formato: i + 1, resposta: text.slice(0, 300) });
-    }
-
-    return res.status(200).json({
-      debug: results,
-      imagens_raw_do_produto: imagensRaw,
-      campos_disponiveis: Object.keys(prod),
+    const body = new URLSearchParams({
+      token,
+      formato: 'JSON',
+      produto: JSON.stringify({ produtos: [{ produto: produtoAtualizado }] }),
     });
 
+    const r = await fetch(`${BASE}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+
+    const text = await r.text();
+    return res.status(200).send(text);
+
   } catch (e) {
-    return res.status(500).json({ error: e.message, stack: e.stack });
+    return res.status(500).json({ error: e.message });
   }
 }

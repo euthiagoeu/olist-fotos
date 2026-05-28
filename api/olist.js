@@ -39,13 +39,13 @@ export default async function handler(req, res) {
       origem: prod.origem || '0',
     };
 
-    // Testar variações do campo imagens_externas
+    // Testar campo anexos com variações
     const variantes = [
-      { ...base, imagens_externas: [{ link: url }] },
-      { ...base, imagens_externas: [{ url: url }] },
-      { ...base, imagens_externas: { imagem_externa: { link: url } } },
-      { ...base, imagens_externas: { imagem_externa: url } },
-      { ...base, imagens_externas: [url] },
+      { ...base, anexos: [{ anexo: { link: url } }] },
+      { ...base, anexos: [{ link: url }] },
+      { ...base, anexos: { anexo: { link: url } } },
+      { ...base, anexos: [{ url: url }] },
+      { ...base, anexos: [url] },
     ];
 
     const results = [];

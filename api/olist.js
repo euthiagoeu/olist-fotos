@@ -22,58 +22,60 @@ export default async function handler(req, res) {
     const id = produto.id;
     const urls = produto.urls;
 
-    // 1. Busca o produto completo para pegar todos os campos obrigatórios
+    // 1. Busca produto completo
     const getR = await fetch(`${BASE}/produto.obter.php?token=${encodeURIComponent(token)}&formato=JSON&id=${id}`);
-    const getText = await getR.text();
-    const getData = JSON.parse(getText);
+    const prod = (await getR.json()).retorno.produto;
 
-    if (getData.retorno?.status === 'Erro') {
-      return res.status(200).json({ error: 'Erro ao buscar produto', detalhe: getData });
+    // 2. Monta imagens — retorna o campo RAW para debug
+    const imagensRaw = prod.imagens || prod.anexos || prod.fotos || null;
+
+    // 3. Testa 3 formatos de imagem diferentes
+    const formatosImagem = [
+      // Formato A: array de strings simples
+      { imagens: urls },
+      // Formato B: objeto com url
+      { imagens: urls.map(u => ({ url: u })) },
+      // Formato C: objeto com link dentro de imagem
+      { imagens: { imagem: { link: urls[0] } } },
+    ];
+
+    const results = [];
+    for (let i = 0; i < formatosImagem.length; i++) {
+      const produtoAtualizado = {
+        sequencia: 1,
+        id: prod.id,
+        nome: prod.nome,
+        codigo: prod.codigo || '',
+        unidade: prod.unidade || 'UN',
+        preco: prod.preco || '0',
+        tipo: prod.tipo || 'P',
+        situacao: prod.situacao || 'A',
+        origem: prod.origem || '0',
+        ...formatosImagem[i],
+      };
+
+      const body = new URLSearchParams({
+        token,
+        formato: 'JSON',
+        produto: JSON.stringify({ produtos: [{ produto: produtoAtualizado }] }),
+      });
+
+      const r = await fetch(`${BASE}/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+      const text = await r.text();
+      results.push({ formato: i + 1, resposta: text.slice(0, 300) });
     }
 
-    const prod = getData.retorno.produto;
-
-    // 2. Monta o JSON completo do produto com as novas imagens adicionadas
-    const imagensExistentes = prod.imagens
-      ? (Array.isArray(prod.imagens) ? prod.imagens : [prod.imagens]).map(i => i.imagem || i)
-      : [];
-
-    const novasImagens = urls.map(u => ({ imagem: { link: u } }));
-    const todasImagens = [...imagensExistentes.map(i => ({ imagem: i })), ...novasImagens];
-
-    const produtoAtualizado = {
-      sequencia: 1,
-      id: prod.id,
-      nome: prod.nome,
-      codigo: prod.codigo || '',
-      unidade: prod.unidade || 'UN',
-      preco: prod.preco || prod.preco_custo || '0',
-      tipo: prod.tipo || 'P',
-      situacao: prod.situacao || 'A',
-      origem: prod.origem || '0',
-      imagens: todasImagens,
-    };
-
-    // Campos opcionais — só inclui se existirem
-    if (prod.descricao) produtoAtualizado.descricao = prod.descricao;
-    if (prod.gtin) produtoAtualizado.gtin = prod.gtin;
-    if (prod.ncm) produtoAtualizado.ncm = prod.ncm;
-    if (prod.peso_bruto) produtoAtualizado.peso_bruto = prod.peso_bruto;
-    if (prod.peso_liquido) produtoAtualizado.peso_liquido = prod.peso_liquido;
-
-    const jsonProduto = JSON.stringify({ produtos: [{ produto: produtoAtualizado }] });
-
-    const body = new URLSearchParams({ token, formato: 'JSON', produto: jsonProduto });
-    const postR = await fetch(`${BASE}/${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
+    return res.status(200).json({
+      debug: results,
+      imagens_raw_do_produto: imagensRaw,
+      campos_disponiveis: Object.keys(prod),
     });
 
-    const postText = await postR.text();
-    return res.status(200).send(postText);
-
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: e.message, stack: e.stack });
   }
 }

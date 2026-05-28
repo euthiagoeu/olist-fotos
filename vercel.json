@@ -1,5 +1,3 @@
 {
-  "rewrites": [
-    { "source": "/.netlify/functions/olist", "destination": "/api/olist" }
-  ]
+  "outputDirectory": "public"
 }

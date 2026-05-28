@@ -21,21 +21,13 @@ export default async function handler(req, res) {
     const { endpoint, token, produto } = req.body;
     const id = produto.id;
     const urls = produto.urls;
+    const url = urls[0];
 
     // Busca produto completo
     const getR = await fetch(`${BASE}/produto.obter.php?token=${encodeURIComponent(token)}&formato=JSON&id=${id}`);
     const prod = (await getR.json()).retorno.produto;
 
-    // Imagens externas existentes
-    const existentes = prod.imagens_externas
-      ? (Array.isArray(prod.imagens_externas) ? prod.imagens_externas : [prod.imagens_externas])
-      : [];
-
-    // Adiciona novas URLs como imagens_externas
-    const novas = urls.map(u => ({ imagem_externa: { link: u } }));
-    const todasExternas = [...existentes, ...novas];
-
-    const produtoAtualizado = {
+    const base = {
       sequencia: 1,
       id: prod.id,
       nome: prod.nome,
@@ -45,23 +37,40 @@ export default async function handler(req, res) {
       tipo: prod.tipo || 'P',
       situacao: prod.situacao || 'A',
       origem: prod.origem || '0',
-      imagens_externas: todasExternas,
     };
 
-    const body = new URLSearchParams({
-      token,
-      formato: 'JSON',
-      produto: JSON.stringify({ produtos: [{ produto: produtoAtualizado }] }),
-    });
+    // Testar variações do campo imagens_externas
+    const variantes = [
+      { ...base, imagens_externas: [{ link: url }] },
+      { ...base, imagens_externas: [{ url: url }] },
+      { ...base, imagens_externas: { imagem_externa: { link: url } } },
+      { ...base, imagens_externas: { imagem_externa: url } },
+      { ...base, imagens_externas: [url] },
+    ];
 
-    const r = await fetch(`${BASE}/${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
+    const results = [];
+    for (let i = 0; i < variantes.length; i++) {
+      const body = new URLSearchParams({
+        token,
+        formato: 'JSON',
+        produto: JSON.stringify({ produtos: [{ produto: variantes[i] }] }),
+      });
+      const r = await fetch(`${BASE}/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+      const text = await r.text();
+      results.push({ v: i + 1, r: text.slice(0, 200) });
+      try {
+        const p = JSON.parse(text);
+        if (p.retorno?.status === 'OK') {
+          return res.status(200).json({ sucesso: true, variante: i + 1 });
+        }
+      } catch {}
+    }
 
-    const text = await r.text();
-    return res.status(200).send(text);
+    return res.status(200).json({ debug: results });
 
   } catch (e) {
     return res.status(500).json({ error: e.message });

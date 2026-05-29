@@ -266,10 +266,9 @@ async function parseResponse(r) {
   const txt = await r.text();
   if (!txt || !txt.trim()) throw new Error('Resposta vazia da API');
   try { return JSON.parse(txt); } catch {}
-  // tenta extrair JSON de dentro de texto
   const match = txt.match(/\{[\s\S]*\}/);
   if (match) try { return JSON.parse(match[0]); } catch {}
-  throw new Error('ERRO JSON mal formado ou inválido — resposta: ' + txt.slice(0, 80));
+  throw new Error('Erro na resposta: ' + txt.slice(0, 80));
 }
 
 async function proxyGet(fullUrl) {
@@ -405,17 +404,14 @@ function renderPending() {
 function removePhoto(i) { pendingPhotos.splice(i,1); renderPending(); }
 
 async function uploadImgur(file) {
+  // Redimensiona e converte para base64 — sem Cloudinary
   const resized = await resizeImage(file, 1200, 0.85);
-  const fd = new FormData();
-  fd.append('file', resized);
-  fd.append('upload_preset', 'olist_fotos');
-  const r = await fetch('https://api.cloudinary.com/v1_1/dryhnlmmg/image/upload', {
-    method: 'POST',
-    body: fd
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result); // retorna data:image/jpeg;base64,...
+    reader.onerror = reject;
+    reader.readAsDataURL(resized);
   });
-  const d = await r.json();
-  if (d.secure_url) return d.secure_url;
-  throw new Error('Falha no upload: ' + (d.error?.message || 'erro desconhecido'));
 }
 
 async function resizeImage(file, maxPx, quality) {
@@ -440,12 +436,16 @@ async function resizeImage(file, maxPx, quality) {
 
 async function sendToOlist(id, urls) {
   if (isDemo) { await new Promise(r=>setTimeout(r,600)); const p=DEMO.find(x=>x.id==id); if(p) urls.forEach(u=>p.fotos.push({link:u})); return; }
-  // Debug: mostrar o ID que está sendo enviado
-  console.log('Enviando para Olist - ID:', id, 'tipo:', typeof id, 'URLs:', urls);
-  if (!id) throw new Error('ID do produto inválido: ' + JSON.stringify(id));
-  const d = await proxyPost(API+'/produto.alterar.php', { token, produto: { id: String(id), urls } });
-  console.log('Resposta Olist:', JSON.stringify(d));
-  if (d.retorno?.status==='Erro') throw new Error(d.retorno.erros?.[0]?.erro||'Erro ao salvar');
+  if (!id) throw new Error('ID do produto inválido');
+  // Envia cada imagem como base64 individualmente
+  for (const base64 of urls) {
+    const d = await proxyPost(API+'/produto.alterar.php', { token, produto: { id: String(id), base64 } });
+    const retorno = d.retorno;
+    if (!retorno) throw new Error('Resposta inválida do Olist');
+    if (retorno.status === 'Erro') throw new Error(retorno.erros?.[0]?.erro || 'Erro ao salvar');
+    const reg = retorno.registros?.[0]?.registro;
+    if (reg && reg.status === 'Erro') throw new Error(reg.erros?.[0]?.erro || 'Erro no registro');
+  }
 }
 
 $('btn-upload').addEventListener('click', async ()=>{

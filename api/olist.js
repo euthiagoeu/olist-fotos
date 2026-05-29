@@ -19,52 +19,22 @@ export default async function handler(req, res) {
     }
 
     const { endpoint, token, produto } = req.body;
-
-    // Se for upload de imagem base64
-    if (produto.base64) {
-      const id = produto.id;
-      const base64 = produto.base64; // "data:image/jpeg;base64,/9j/..."
-
-      // Busca produto completo
-      const getR = await fetch(`${BASE}/produto.obter.php?token=${encodeURIComponent(token)}&formato=JSON&id=${id}`);
-      const prod = (await getR.json()).retorno.produto;
-      const existentes = Array.isArray(prod.anexos) ? prod.anexos : [];
-
-      const produtoAtualizado = {
-        sequencia: 1,
-        id: prod.id,
-        nome: prod.nome,
-        codigo: prod.codigo || '',
-        unidade: prod.unidade || 'Un',
-        preco: prod.preco || '0',
-        tipo: prod.tipo || 'P',
-        situacao: prod.situacao || 'A',
-        origem: prod.origem || '0',
-        anexos: [...existentes, { anexo: base64 }],
-      };
-
-      const body = new URLSearchParams({
-        token,
-        formato: 'JSON',
-        produto: JSON.stringify({ produtos: [{ produto: produtoAtualizado }] }),
-      });
-
-      const r = await fetch(`${BASE}/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(),
-      });
-      const text = await r.text();
-      return res.status(200).send(text);
-    }
-
-    // Fallback: fluxo normal com URLs
     const id = produto.id;
-    const urls = produto.urls;
+
+    // Busca produto completo — 1 chamada
     const getR = await fetch(`${BASE}/produto.obter.php?token=${encodeURIComponent(token)}&formato=JSON&id=${id}`);
     const prod = (await getR.json()).retorno.produto;
     const existentes = Array.isArray(prod.anexos) ? prod.anexos : [];
-    const novos = urls.map(u => ({ anexo: u }));
+
+    // Adiciona TODAS as fotos de uma vez — evita múltiplas chamadas
+    const novos = Array.isArray(produto.base64list)
+      ? produto.base64list.map(b => ({ anexo: b }))
+      : produto.base64
+        ? [{ anexo: produto.base64 }]
+        : (produto.urls || []).map(u => ({ anexo: u }));
+
+    // Limite de 6 imagens total (limite do Olist)
+    const todosAnexos = [...existentes, ...novos].slice(0, 6);
 
     const produtoAtualizado = {
       sequencia: 1,
@@ -76,7 +46,7 @@ export default async function handler(req, res) {
       tipo: prod.tipo || 'P',
       situacao: prod.situacao || 'A',
       origem: prod.origem || '0',
-      anexos: [...existentes, ...novos],
+      anexos: todosAnexos,
     };
 
     const body = new URLSearchParams({
@@ -85,11 +55,15 @@ export default async function handler(req, res) {
       produto: JSON.stringify({ produtos: [{ produto: produtoAtualizado }] }),
     });
 
+    // Aguarda 1s se vier de múltiplos produtos seguidos para evitar bloqueio
+    if (produto.aguardar) await new Promise(r => setTimeout(r, 1200));
+
     const r = await fetch(`${BASE}/${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
     });
+
     const text = await r.text();
     return res.status(200).send(text);
 

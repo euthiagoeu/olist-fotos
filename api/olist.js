@@ -19,30 +19,17 @@ export default async function handler(req, res) {
     }
 
     const { endpoint, token, produto } = req.body;
-    const id = produto.id;
-    const urls = produto.urls;
 
-    // Busca produto completo
-    const getR = await fetch(`${BASE}/produto.obter.php?token=${encodeURIComponent(token)}&formato=JSON&id=${id}`);
-    const prod = (await getR.json()).retorno.produto;
+    // Se for upload de imagem base64
+    if (produto.base64) {
+      const id = produto.id;
+      const base64 = produto.base64; // "data:image/jpeg;base64,/9j/..."
 
-    const existentes = Array.isArray(prod.anexos) ? prod.anexos : [];
+      // Busca produto completo
+      const getR = await fetch(`${BASE}/produto.obter.php?token=${encodeURIComponent(token)}&formato=JSON&id=${id}`);
+      const prod = (await getR.json()).retorno.produto;
+      const existentes = Array.isArray(prod.anexos) ? prod.anexos : [];
 
-    // Testa 3 formatos de URL diferentes para o mesmo arquivo
-    const urlOriginal = urls[0];
-    // Força extensão .jpg explícita no Cloudinary
-    const urlComExtensao = urlOriginal.replace('/upload/', '/upload/f_jpg/');
-    // URL de teste com imagem pública conhecida
-    const urlTeste = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Image_created_with_a_mobile_phone.png/220px-Image_created_with_a_mobile_phone.png';
-
-    const variantes = [
-      [...existentes, { anexo: urlOriginal }],
-      [...existentes, { anexo: urlComExtensao }],
-      [...existentes, { anexo: urlTeste }],
-    ];
-
-    const results = [];
-    for (let i = 0; i < variantes.length; i++) {
       const produtoAtualizado = {
         sequencia: 1,
         id: prod.id,
@@ -53,7 +40,7 @@ export default async function handler(req, res) {
         tipo: prod.tipo || 'P',
         situacao: prod.situacao || 'A',
         origem: prod.origem || '0',
-        anexos: variantes[i],
+        anexos: [...existentes, { anexo: base64 }],
       };
 
       const body = new URLSearchParams({
@@ -68,16 +55,43 @@ export default async function handler(req, res) {
         body: body.toString(),
       });
       const text = await r.text();
-      results.push({ v: i + 1, url: variantes[i].slice(-1)[0].anexo.slice(0, 60), r: text.slice(0, 200) });
-      try {
-        const p = JSON.parse(text);
-        if (p.retorno?.status === 'OK') {
-          return res.status(200).json({ sucesso: true, variante: i + 1 });
-        }
-      } catch {}
+      return res.status(200).send(text);
     }
 
-    return res.status(200).json({ debug: results });
+    // Fallback: fluxo normal com URLs
+    const id = produto.id;
+    const urls = produto.urls;
+    const getR = await fetch(`${BASE}/produto.obter.php?token=${encodeURIComponent(token)}&formato=JSON&id=${id}`);
+    const prod = (await getR.json()).retorno.produto;
+    const existentes = Array.isArray(prod.anexos) ? prod.anexos : [];
+    const novos = urls.map(u => ({ anexo: u }));
+
+    const produtoAtualizado = {
+      sequencia: 1,
+      id: prod.id,
+      nome: prod.nome,
+      codigo: prod.codigo || '',
+      unidade: prod.unidade || 'Un',
+      preco: prod.preco || '0',
+      tipo: prod.tipo || 'P',
+      situacao: prod.situacao || 'A',
+      origem: prod.origem || '0',
+      anexos: [...existentes, ...novos],
+    };
+
+    const body = new URLSearchParams({
+      token,
+      formato: 'JSON',
+      produto: JSON.stringify({ produtos: [{ produto: produtoAtualizado }] }),
+    });
+
+    const r = await fetch(`${BASE}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+    const text = await r.text();
+    return res.status(200).send(text);
 
   } catch (e) {
     return res.status(500).json({ error: e.message });

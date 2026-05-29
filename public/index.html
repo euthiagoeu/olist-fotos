@@ -405,7 +405,7 @@ function removePhoto(i) { pendingPhotos.splice(i,1); renderPending(); }
 
 async function uploadImgur(file) {
   // Redimensiona e converte para base64 — sem Cloudinary
-  const resized = await resizeImage(file, 1200, 0.85);
+  const resized = await resizeImage(file, 800, 0.6);
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result); // retorna data:image/jpeg;base64,...
@@ -437,13 +437,16 @@ async function resizeImage(file, maxPx, quality) {
 async function sendToOlist(id, base64list) {
   if (isDemo) { await new Promise(r=>setTimeout(r,600)); const p=DEMO.find(x=>x.id==id); if(p) base64list.forEach(u=>p.fotos.push({link:u})); return; }
   if (!id) throw new Error('ID do produto inválido');
-  // Envia TODAS as fotos juntas em uma única chamada — evita bloqueio da API
-  const d = await proxyPost(API+'/produto.alterar.php', { token, produto: { id: String(id), base64list } });
-  const retorno = d.retorno;
-  if (!retorno) throw new Error('Resposta inválida do Olist');
-  if (retorno.status === 'Erro') throw new Error(retorno.erros?.[0]?.erro || 'Erro ao salvar');
-  const reg = retorno.registros?.[0]?.registro;
-  if (reg && reg.status === 'Erro') throw new Error(reg.erros?.[0]?.erro || 'Erro no registro');
+  // Envia uma foto por vez com delay para não exceder limites
+  for (let i = 0; i < base64list.length; i++) {
+    if (i > 0) await new Promise(r => setTimeout(r, 1500)); // delay entre fotos
+    const d = await proxyPost(API+'/produto.alterar.php', { token, produto: { id: String(id), base64: base64list[i] } });
+    const retorno = d.retorno;
+    if (!retorno) throw new Error('Resposta inválida do Olist');
+    if (retorno.status === 'Erro') throw new Error(retorno.erros?.[0]?.erro || 'Erro ao salvar');
+    const reg = retorno.registros?.[0]?.registro;
+    if (reg && reg.status === 'Erro') throw new Error(reg.erros?.[0]?.erro || 'Erro no registro');
+  }
 }
 
 $('btn-upload').addEventListener('click', async ()=>{

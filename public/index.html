@@ -464,7 +464,7 @@ $('btn-upload').addEventListener('click', async ()=>{
     $('pfill').style.width='100%';
     unload();
     if (!currentProduct.fotos) currentProduct.fotos=[];
-    urls.forEach(u=>currentProduct.fotos.push({link:u}));
+    base64list.forEach(u=>currentProduct.fotos.push({link:u}));
     showProduct(currentProduct);
     const m=$('msg'); m.textContent=`✓ ${urls.length} foto${urls.length>1?'s':''} adicionada${urls.length>1?'s':''} com sucesso!`; m.className='msg on ok';
     toast('Fotos enviadas!','s');

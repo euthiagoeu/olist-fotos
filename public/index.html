@@ -466,7 +466,7 @@ $('btn-upload').addEventListener('click', async ()=>{
     if (!currentProduct.fotos) currentProduct.fotos=[];
     base64list.forEach(u=>currentProduct.fotos.push({link:u}));
     showProduct(currentProduct);
-    const m=$('msg'); m.textContent=`✓ ${urls.length} foto${urls.length>1?'s':''} adicionada${urls.length>1?'s':''} com sucesso!`; m.className='msg on ok';
+    const m=$('msg'); m.textContent=`✓ ${base64list.length} foto${base64list.length>1?'s':''} adicionada${base64list.length>1?'s':''} com sucesso!`; m.className='msg on ok';
     toast('Fotos enviadas!','s');
     setTimeout(()=>$('progress').classList.remove('on'),1200);
   } catch(e) {
